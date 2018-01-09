@@ -598,6 +598,137 @@ class BigQueryBaseCursor(LoggingMixin):
 
         return self.run_with_configuration(configuration)
 
+    def run_external(self,
+                     federated_project_dataset_table,
+                     schema_fields,
+                     source_uris,
+                     source_format='CSV',
+                     skip_leading_rows=0,
+                     field_delimiter=',',
+                     max_bad_records=0,
+                     quote_character=None,
+                     allow_quoted_newlines=False,
+                     allow_jagged_rows=False,
+                     src_fmt_configs={}):
+        """
+        Links a BigQuery federated/external table to query data from Google Cloud Storage. See here:
+
+        https://cloud.google.com/bigquery/external-data-sources
+
+        For more details about these parameters.
+
+        :param federated_project_dataset_table:
+            The dotted (<project>.|<project>:)<dataset>.<table> BigQuery table to load
+            data into. If <project> is not included, project will be the project defined
+            in the connection json.
+        :type federated_project_dataset_table: string
+        :param schema_fields: The schema field list as defined here:
+        https://g.co/cloud/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions
+        :type schema_fields: list
+        :param source_uris: The source Google Cloud
+            Storage URI (e.g. gs://some-bucket/some-file.txt). A single wild
+            per-object name can be used.
+        :type source_uris: list
+        :param source_format: File format to export.
+        :type source_format: string
+        :param skip_leading_rows: Number of rows to skip when loading from a CSV.
+        :type skip_leading_rows: int
+        :param field_delimiter: The delimiter to use when loading from a CSV.
+        :type field_delimiter: string
+        :param max_bad_records: The maximum number of bad records that BigQuery can
+            ignore when running the job.
+        :type max_bad_records: int
+        :param quote_character: The value that is used to quote data sections in a CSV file.
+        :type quote_character: string
+        :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not (false).
+        :type allow_quoted_newlines: boolean
+        :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
+            The missing values are treated as nulls. If false, records with missing trailing columns
+            are treated as bad records, and if there are too many bad records, an invalid error is
+            returned in the job result. Only applicable when soure_format is CSV.
+        :type allow_jagged_rows: bool
+        :param schema_update_options: Allows the schema of the desitination
+            table to be updated as a side effect of the load job.
+        :type schema_update_options: tuple
+        :param src_fmt_configs: configure optional fields specific to the source format
+        :type src_fmt_configs: dict
+        """
+
+        # bigquery only allows certain source formats
+        # we check to make sure the passed source format is valid
+        # if it's not, we raise a ValueError
+        # Refer to this link for more details:
+        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).sourceFormat
+        source_format = source_format.upper()
+        allowed_formats = [
+            "CSV", "NEWLINE_DELIMITED_JSON", "AVRO", "GOOGLE_SHEETS",
+            "DATASTORE_BACKUP"
+        ]
+        if source_format not in allowed_formats:
+            raise ValueError("{0} is not a valid source format. "
+                             "Please use one of the following types: {1}"
+                             .format(source_format, allowed_formats))
+
+        destination_project, destination_dataset, destination_table = \
+            _split_tablename(table_input=federated_project_dataset_table,
+                             default_project_id=self.project_id,
+                             var_name='destination_project_dataset_table')
+
+        configuration = {
+            'query': {
+                'destinationTable': {
+                    'projectId': destination_project,
+                    'datasetId': destination_dataset,
+                    'tableId': destination_table,
+                },
+                'tableDefinitions': {
+                    '1': {
+                        'sourceUris': source_uris,
+                        'sourceFormat': source_format,
+                    },
+                },
+            }
+        }
+        if schema_fields:
+            configuration['query']['1']['schema'] = {'fields': schema_fields}
+
+        if max_bad_records:
+            configuration['query']['1']['maxBadRecords'] = max_bad_records
+
+        # if following fields are not specified in src_fmt_configs,
+        # honor the top-level params for backward-compatibility
+        if 'skipLeadingRows' not in src_fmt_configs:
+            src_fmt_configs['skipLeadingRows'] = skip_leading_rows
+        if 'fieldDelimiter' not in src_fmt_configs:
+            src_fmt_configs['fieldDelimiter'] = field_delimiter
+        if quote_character:
+            src_fmt_configs['quote'] = quote_character
+        if allow_quoted_newlines:
+            src_fmt_configs['allowQuotedNewlines'] = allow_quoted_newlines
+
+        src_fmt_to_configs_mapping = {
+            'CSV': [
+                'autodetect', 'ignoreUnknownValues', {'csvOptions': 'allowJaggedRows'},
+                {'csvOptions': 'allowQuotedNewlines'}, {'csvOptions': 'fieldDelimiter'},
+                {'csvOptions': 'skipLeadingRows'}, {'csvOptions': 'quote'}
+            ],
+            'GOOGLE_SHEETS': [{'googleSheetsOptions': ['skipLeadingRows']}],
+            'DATASTORE_BACKUP': [],
+            'NEWLINE_DELIMITED_JSON': ['autodetect', 'ignoreUnknownValues'],
+            'AVRO': [],
+        }
+        valid_configs = src_fmt_to_configs_mapping[source_format]
+        src_fmt_configs = {
+            k: v
+            for k, v in src_fmt_configs if k in valid_configs
+        }
+        configuration['query']['1'].update(src_fmt_configs)
+
+        if allow_jagged_rows:
+            configuration['load']['1']['allowJaggedRows'] = allow_jagged_rows
+
+        return self.run_with_configuration(configuration)
+
     def run_with_configuration(self, configuration):
         """
         Executes a BigQuery SQL query. See here:

@@ -51,6 +51,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         google_cloud_storage_conn_id='google_cloud_storage_default',
         delegate_to=None,
         schema_update_options=(),
+        external=False,
         src_fmt_configs={},
         *args,
         **kwargs):
@@ -114,6 +115,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             work, the service account making the request must have domain-wide
             delegation enabled.
         :type delegate_to: string
+        :param external: Whether the table is external/federated or not (true) or not (false).
+        :type external: boolean
         :param schema_update_options: Allows the schema of the desitination
             table to be updated as a side effect of the load job.
         :type schema_update_options: list
@@ -144,6 +147,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.bigquery_conn_id = bigquery_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
+        self.external = external
 
         self.schema_update_options = schema_update_options
         self.src_fmt_configs = src_fmt_configs
@@ -167,21 +171,35 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                        for source_object in self.source_objects]
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
-        cursor.run_load(
-            destination_project_dataset_table=self.destination_project_dataset_table,
-            schema_fields=schema_fields,
-            source_uris=source_uris,
-            source_format=self.source_format,
-            create_disposition=self.create_disposition,
-            skip_leading_rows=self.skip_leading_rows,
-            write_disposition=self.write_disposition,
-            field_delimiter=self.field_delimiter,
-            max_bad_records=self.max_bad_records,
-            quote_character=self.quote_character,
-            allow_quoted_newlines=self.allow_quoted_newlines,
-            allow_jagged_rows=self.allow_jagged_rows,
-            schema_update_options=self.schema_update_options,
-            src_fmt_configs=self.src_fmt_configs)
+        if self.external:
+            cursor.run_external(
+                destination_project_dataset_table=self.destination_project_dataset_table,
+                schema_fields=schema_fields,
+                source_uris=source_uris,
+                source_format=self.source_format,
+                skip_leading_rows=self.skip_leading_rows,
+                field_delimiter=self.field_delimiter,
+                max_bad_records=self.max_bad_records,
+                quote_character=self.quote_character,
+                allow_quoted_newlines=self.allow_quoted_newlines,
+                allow_jagged_rows=self.allow_jagged_rows,
+                src_fmt_configs=self.src_fmt_configs)
+        else:
+            cursor.run_load(
+                destination_project_dataset_table=self.destination_project_dataset_table,
+                schema_fields=schema_fields,
+                source_uris=source_uris,
+                source_format=self.source_format,
+                create_disposition=self.create_disposition,
+                skip_leading_rows=self.skip_leading_rows,
+                write_disposition=self.write_disposition,
+                field_delimiter=self.field_delimiter,
+                max_bad_records=self.max_bad_records,
+                quote_character=self.quote_character,
+                allow_quoted_newlines=self.allow_quoted_newlines,
+                allow_jagged_rows=self.allow_jagged_rows,
+                schema_update_options=self.schema_update_options,
+                src_fmt_configs=self.src_fmt_configs)
 
         if self.max_id_key:
             cursor.execute('SELECT MAX({}) FROM {}'.format(
