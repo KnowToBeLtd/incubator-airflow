@@ -115,7 +115,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             work, the service account making the request must have domain-wide
             delegation enabled.
         :type delegate_to: string
-        :param external: Whether the table is external/federated or not (true) or not (false).
+        :param external: Whether the table is external/federated or not (true) or not
+            (false).
         :type external: boolean
         :param schema_update_options: Allows the schema of the desitination
             table to be updated as a side effect of the load job.

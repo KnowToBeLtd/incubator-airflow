@@ -611,7 +611,8 @@ class BigQueryBaseCursor(LoggingMixin):
                      allow_jagged_rows=False,
                      src_fmt_configs={}):
         """
-        Links a BigQuery federated/external table to query data from Google Cloud Storage. See here:
+        Links a BigQuery federated/external table to query data from Google Cloud Storage.
+        See here:
 
         https://cloud.google.com/bigquery/external-data-sources
 
@@ -623,7 +624,8 @@ class BigQueryBaseCursor(LoggingMixin):
             in the connection json.
         :type federated_project_dataset_table: string
         :param schema_fields: The schema field list as defined here:
-        https://g.co/cloud/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions
+        https://g.co/cloud/bigquery/docs/reference/rest/v2/jobs#configuration.query
+        .tableDefinitions
         :type schema_fields: list
         :param source_uris: The source Google Cloud
             Storage URI (e.g. gs://some-bucket/some-file.txt). A single wild
@@ -638,14 +640,17 @@ class BigQueryBaseCursor(LoggingMixin):
         :param max_bad_records: The maximum number of bad records that BigQuery can
             ignore when running the job.
         :type max_bad_records: int
-        :param quote_character: The value that is used to quote data sections in a CSV file.
+        :param quote_character: The value that is used to quote data sections in a CSV
+            file.
         :type quote_character: string
-        :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not (false).
+        :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not
+            (false).
         :type allow_quoted_newlines: boolean
         :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
-            The missing values are treated as nulls. If false, records with missing trailing columns
-            are treated as bad records, and if there are too many bad records, an invalid error is
-            returned in the job result. Only applicable when soure_format is CSV.
+            The missing values are treated as nulls. If false, records with missing
+            trailing columns are treated as bad records, and if there are too many bad
+            records, an invalid error is returned in the job result. Only applicable when
+            soure_format is CSV.
         :type allow_jagged_rows: bool
         :param schema_update_options: Allows the schema of the desitination
             table to be updated as a side effect of the load job.
