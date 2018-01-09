@@ -652,9 +652,6 @@ class BigQueryBaseCursor(LoggingMixin):
             records, an invalid error is returned in the job result. Only applicable when
             soure_format is CSV.
         :type allow_jagged_rows: bool
-        :param schema_update_options: Allows the schema of the desitination
-            table to be updated as a side effect of the load job.
-        :type schema_update_options: tuple
         :param src_fmt_configs: configure optional fields specific to the source format
         :type src_fmt_configs: dict
         """
